@@ -1,0 +1,19 @@
+## The image value usage in the k8s yaml file
+image:
+  repository: 
+  tag: latest
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    cpu: "100m"
+    memory: "1Gi"
+  limits:
+    cpu: "1000m"
+    memory: "2Gi"
+
+replicaCount: 1
+updateStrategy: OnDelete
+
+jobNodeSelector: |-
+  node-role.kubernetes.io/master: ""

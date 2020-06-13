@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  #name: {{ template "host-ssh.fullname" . }}-new-ports
+  name: {{ template "host-ssh.fullname" . }}-scripts
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "host-ssh.name" . }}
+    chart: {{ template "host-ssh.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+  annotations:
+    ## This is what defines this resource as a hook.
+    ## Make sure the weight is smaller than the hook job, which will make sure the configmap is created before running the job.
+    #"helm.sh/hook": pre-install
+    #"helm.sh/hook-weight": "-10"
+    #"helm.sh/hook-delete-policy": before-hook-creation
+data:
+  test.sh: |-
+    #!/bin/sh
+
+    logFile="/var/log/test_from_host-test_container.log"
+    mkdir -p /var/log
+    touch $logFile 
+    
+    k8sMasterNodes=$(kubectl get nodes|grep master|awk '{print $1}')
+    for node in $k8sMasterNodes
+    do
+      echo "$(date) : running host-test test.sh in node $node." >> $logFile
+      ssh -o StrictHostKeyChecking=no $node "
+        echo \"I am new from host-ssh ....\" > host-ssh_test.txt"
+      echo "$(date) : host-test test.sh in node $node end." >> $logFile
+    done

@@ -1,0 +1,73 @@
+{{- if ne .Values.serviceType "LoadBalance" }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{.Release.Name}}"
+  labels:
+    app.kubernetes.io/managed-by: {{.Release.Service | quote }}
+    app.kubernetes.io/instance: {{.Release.Name | quote }}
+    helm.sh/chart: "{{.Chart.Name}}-{{.Chart.Version}}"
+    app: {{ template "host-ssh.name" . }}
+    chart: {{ template "host-ssh.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+  annotations:
+    ## This is what defines this resource as a hook. Without this line, the
+    ## job is considered part of the release.
+    #"helm.sh/hook": pre-install,pre-upgrade
+    #"helm.sh/hook-weight": "-5"
+    ##Use the ttlSecondsAfterFinished to control the lifecycel after success instead of hook delete policy.
+    ##"helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    #"helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  ttlSecondsAfterFinished: 60
+  parallelism: 1
+  backoffLimit: 0
+  template:
+    metadata:
+      name: "{{.Release.Name}}"
+      labels:
+        app.kubernetes.io/managed-by: {{.Release.Service | quote }}
+        app.kubernetes.io/instance: {{.Release.Name | quote }}
+        helm.sh/chart: "{{.Chart.Name}}-{{.Chart.Version}}"
+        app: {{ template "host-ssh.name" . }}
+        release: {{ .Release.Name }}
+    spec:
+      restartPolicy: Never
+      volumes:
+      - name: ssh-key
+        hostPath:
+          path: /root/.ssh/id_rsa
+          type: File
+      - name: scripts-cm
+        configMap:
+          name: {{ template "host-ssh.fullname" . }}-scripts
+          items:
+          - key: test.sh
+            path: test.sh
+      - name: scripts
+        hostPath:
+          path: /tmp
+          type: Directory
+      containers:
+      - name: pre-install-job
+        image: {{ if .Values.image.repository}}{{ .Values.image.repository }}/{{- end -}}host-ssh:{{ .Values.image.tag }}
+        command: ["/bin/sh"]
+        args: ["-c", "sh entrypoint.sh;\\cp /tmp/test.sh /mnt;ssh root@dockerhost \"sh /tmp/test.sh\";rm -f /mnt/test.sh"]
+        resources:
+          limits:
+            memory: {{ .Values.memorylimitation }}
+        volumeMounts:
+        - name: ssh-key
+          mountPath: /root/.ssh/id_rsa
+        - name: scripts-cm
+          mountPath: /tmp
+        - name: scripts
+          mountPath: /mnt
+      securityContext:
+        runAsUser: 0
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+{{ .Values.jobNodeSelector | indent 8 }}
+      {{- end }}
+{{- end }}

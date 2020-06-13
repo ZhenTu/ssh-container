@@ -1,0 +1,12 @@
+name: host-ssh
+version: 1.0.0
+appVersion: 1.0.0
+description: ssh container to run command from master nodes
+keywords:
+- ssh
+- host
+maintainers:
+- email: 24422523@qq.com
+  name: ZhenTu
+sources:
+- https://github.com/ZhenTu/ssh-container
